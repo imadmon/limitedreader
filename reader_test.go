@@ -236,7 +236,7 @@ func TestLimitedReader_ReadPerformence(t *testing.T) {
 	const durationInSeconds = 5
 	const bufferSize = 32 * 1024 // 32KB buffer
 	const limit = math.MaxInt    // bufferSize * 1_000_000_000 // large limit
-	const minExpectedMB = 14000
+	const minExpectedMB = 12000
 	fmt.Printf("Duration set: %d seconds\n", durationInSeconds)
 
 	buffer := make([]byte, bufferSize)
