@@ -1,6 +1,7 @@
 package limitedreader
 
 import (
+	"context"
 	"io"
 	"sync/atomic"
 	"time"
@@ -18,14 +19,7 @@ type LimitedReader struct {
 	timeSlept       atomic.Int64
 	timeAccumulated atomic.Int64
 	clock           Clock
-}
-
-type Option func(*LimitedReader)
-
-func WithClock(c Clock) Option {
-	return func(lr *LimitedReader) {
-		lr.clock = c
-	}
+	ctx             context.Context
 }
 
 func NewLimitedReader(reader io.Reader, limit int64, opts ...Option) *LimitedReader {
@@ -36,6 +30,7 @@ func NewLimitedReadCloser(reader io.ReadCloser, limit int64, opts ...Option) *Li
 	lr := &LimitedReader{
 		reader: reader,
 		clock:  realClock{},
+		ctx:    context.Background(),
 	}
 
 	lr.limit.Store(limit)
@@ -54,7 +49,7 @@ func NewLimitedReadCloser(reader io.ReadCloser, limit int64, opts ...Option) *Li
 func (lr *LimitedReader) Read(p []byte) (n int, err error) {
 	lr.iterTotalRead.Store(0)
 	chunkSize := int64(len(p))
-	for lr.iterTotalRead.Load() < chunkSize {
+	for !lr.isContextCanceled() && lr.iterTotalRead.Load() < chunkSize {
 		limit := lr.limit.Load()
 		if limit <= 0 {
 			n, err = lr.readWithoutLimit(p[lr.iterTotalRead.Load():int(chunkSize)])
@@ -78,6 +73,10 @@ func (lr *LimitedReader) Read(p []byte) (n int, err error) {
 		if err != nil {
 			break
 		}
+	}
+
+	if err == nil && lr.isContextCanceled() {
+		err = context.Canceled
 	}
 
 	return int(lr.iterTotalRead.Load()), err
@@ -113,6 +112,15 @@ func (lr *LimitedReader) sleep(allowedBytes, iterLimit int64) {
 		lr.timeAccumulated.Store(sleepTime)
 		lr.timeSlept.Store(0)
 		lr.lastElapsed.Store(now)
+	}
+}
+
+func (lr *LimitedReader) isContextCanceled() bool {
+	select {
+	case <-lr.ctx.Done():
+		return true
+	default:
+		return false
 	}
 }
 
