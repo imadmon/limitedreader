@@ -273,6 +273,30 @@ func (infiniteReader) Read(p []byte) (int, error) {
 	return len(p), nil
 }
 
+func TestLimitedReader_ReadWithClock(t *testing.T) {
+	const dataSize = 100 * 1024 // 100KB
+	const bufferSize = dataSize // one read call
+	const partsAmount = 4
+	const limit = dataSize / partsAmount // dataSize/partsAmount bytes per second
+
+	reader := bytes.NewReader(make([]byte, dataSize))
+	lr := NewLimitedReader(reader, int64(limit), WithClock(noSleepClock{}))
+
+	start := time.Now()
+	read(t, lr, bufferSize, dataSize)
+	assertReadTimes(t, time.Since(start), 0, 1)
+}
+
+type noSleepClock struct{}
+
+func (noSleepClock) Now() time.Time {
+	return time.Now()
+}
+
+func (noSleepClock) Sleep(sleepTime time.Duration) {
+	return
+}
+
 func read(t *testing.T, reader *LimitedReader, bufferSize, expectedDataSize int) ([]byte, error) {
 	data := make([]byte, expectedDataSize)
 	total := 0
