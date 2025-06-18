@@ -2,6 +2,7 @@ package limitedreader
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -21,7 +22,7 @@ func TestLimitedReader_BasicRead(t *testing.T) {
 	lr := NewLimitedReader(reader, int64(limit))
 
 	start := time.Now()
-	read(t, lr, bufferSize, dataSize)
+	read(t, lr, bufferSize, dataSize, nil)
 	assertReadTimes(t, time.Since(start), partsAmount, partsAmount+1)
 }
 
@@ -36,12 +37,8 @@ func TestLimitedReader_DataHermetics(t *testing.T) {
 	lr := NewLimitedReader(reader, int64(limit))
 
 	start := time.Now()
-	data, err := read(t, lr, bufferSize, dataSize)
+	data := read(t, lr, bufferSize, dataSize, nil)
 	assertReadTimes(t, time.Since(start), partsAmount, partsAmount+1)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
 
 	for i := 0; i < dataSize; i++ {
 		if string(data[i]) != key {
@@ -60,7 +57,7 @@ func TestLimitedReader_NoLimitRead(t *testing.T) {
 	lr := NewLimitedReader(reader, limit)
 
 	start := time.Now()
-	read(t, lr, bufferSize, dataSize)
+	read(t, lr, bufferSize, dataSize, nil)
 	assertReadTimes(t, time.Since(start), 0, 0)
 }
 
@@ -74,7 +71,7 @@ func TestLimitedReader_MultipleReads(t *testing.T) {
 	lr := NewLimitedReader(reader, int64(limit))
 
 	start := time.Now()
-	read(t, lr, bufferSize, dataSize)
+	read(t, lr, bufferSize, dataSize, nil)
 	assertReadTimes(t, time.Since(start), partsAmount, partsAmount+1)
 }
 
@@ -88,7 +85,7 @@ func TestLimitedReader_LargeRead(t *testing.T) {
 	lr := NewLimitedReader(reader, int64(limit))
 
 	start := time.Now()
-	read(t, lr, bufferSize, dataSize)
+	read(t, lr, bufferSize, dataSize, nil)
 	assertReadTimes(t, time.Since(start), partsAmount, partsAmount+1)
 }
 
@@ -100,8 +97,8 @@ func TestLimitedReader_EOFBehavior(t *testing.T) {
 	reader := bytes.NewReader(make([]byte, dataSize))
 	lr := NewLimitedReader(reader, int64(limit))
 
-	read(t, lr, bufferSize, dataSize)
-	read(t, lr, bufferSize, 0)
+	read(t, lr, bufferSize, dataSize, nil)
+	read(t, lr, bufferSize, 0, io.EOF)
 }
 
 func TestLimitedReader_UpdateLimit(t *testing.T) {
@@ -114,11 +111,11 @@ func TestLimitedReader_UpdateLimit(t *testing.T) {
 	lr := NewLimitedReader(reader, int64(limit))
 
 	start := time.Now()
-	read(t, lr, bufferSize, bufferSize)
+	read(t, lr, bufferSize, bufferSize, nil)
 
 	lr.UpdateLimit(int64(limit) * 2) // update limit to cut time for the second half by half (minus 25% to the expected time)
 
-	read(t, lr, bufferSize, bufferSize)
+	read(t, lr, bufferSize, bufferSize, nil)
 
 	assertReadTimes(t, time.Since(start), int(float64(partsAmount)*0.75), int(float64(partsAmount)*0.75)+1)
 }
@@ -151,7 +148,7 @@ func TestLimitedReader_GetCurrentTotalRead(t *testing.T) {
 	}()
 
 	start := time.Now()
-	read(t, lr, bufferSize, dataSize)
+	read(t, lr, bufferSize, dataSize, nil)
 	assertReadTimes(t, time.Since(start), partsAmount, partsAmount+1)
 	<-doneC
 }
@@ -166,7 +163,7 @@ func TestLimitedReader_UnconventionalLimitRead(t *testing.T) {
 	lr := NewLimitedReader(reader, int64(limit))
 
 	start := time.Now()
-	read(t, lr, dataSize, dataSize)
+	read(t, lr, dataSize, dataSize, nil)
 	assertReadTimes(t, time.Since(start), partsAmount, partsAmount+1)
 }
 
@@ -215,7 +212,7 @@ func TestLimitedReader_ReadUnstableStream(t *testing.T) {
 	lr := NewLimitedReader(reader, limit)
 
 	start := time.Now()
-	read(t, lr, bufferSize, dataSize)
+	read(t, lr, bufferSize, dataSize, nil)
 	assertReadTimes(t, time.Since(start), partsAmount, partsAmount+1)
 }
 
@@ -283,7 +280,7 @@ func TestLimitedReader_ReadWithClock(t *testing.T) {
 	lr := NewLimitedReader(reader, int64(limit), WithClock(noSleepClock{}))
 
 	start := time.Now()
-	read(t, lr, bufferSize, dataSize)
+	read(t, lr, bufferSize, dataSize, nil)
 	assertReadTimes(t, time.Since(start), 0, 1)
 }
 
@@ -297,31 +294,55 @@ func (noSleepClock) Sleep(sleepTime time.Duration) {
 	return
 }
 
-func read(t *testing.T, reader *LimitedReader, bufferSize, expectedDataSize int) ([]byte, error) {
-	data := make([]byte, expectedDataSize)
-	total := 0
-	for total < expectedDataSize {
+func TestLimitedReader_ReadWithContext(t *testing.T) {
+	const dataSize = 100 * 1024 // 100KB
+	const bufferSize = dataSize // one read call
+	const partsAmount = 4
+	const limit = dataSize / partsAmount // dataSize/partsAmount bytes per second
+
+	ctx, ctxCancel := context.WithCancel(context.Background())
+
+	reader := bytes.NewReader(make([]byte, dataSize))
+	lr := NewLimitedReader(reader, int64(limit), WithContext(ctx))
+
+	ctxCancel()
+	start := time.Now()
+	read(t, lr, bufferSize, 0, context.Canceled)
+	assertReadTimes(t, time.Since(start), 0, 1)
+}
+
+func read(t *testing.T, reader *LimitedReader, bufferSize, expectedDataSize int, expectedErr error) []byte {
+	dataSize := expectedDataSize
+	if dataSize == 0 {
+		dataSize = 1
+	}
+
+	data := make([]byte, dataSize)
+	var err error
+	var n int
+	var total int
+	for total < dataSize {
 		readCapacity := total + bufferSize
-		if readCapacity > expectedDataSize {
-			readCapacity = expectedDataSize
+		if readCapacity > dataSize {
+			readCapacity = dataSize
 		}
 
-		n, err := reader.Read(data[total:readCapacity])
+		n, err = reader.Read(data[total:dataSize])
 		total += n
 		if err != nil {
-			if err != io.EOF {
-				t.Fatalf("unexpected error: %v", err)
-				return nil, err
-			}
 			break
 		}
+	}
+
+	if err != expectedErr {
+		t.Fatalf("unexpected error: %v, expected error: %v", err, expectedErr)
 	}
 
 	if total != expectedDataSize {
 		t.Fatalf("read incomplete data, read: %d expected: %d", total, expectedDataSize)
 	}
 
-	return data, nil
+	return data
 }
 
 func assertReadTimes(t *testing.T, elapsed time.Duration, minTimeInSeconds, maxTimeInSeconds int) {
