@@ -39,33 +39,36 @@ func NewLimitedReadCloser(reader io.ReadCloser, limit int64) *LimitedReader {
 func (lr *LimitedReader) Read(p []byte) (n int, err error) {
 	lr.iterTotalRead.Store(0)
 	chunkSize := int64(len(p))
-	for lr.iterTotalRead.Load() < chunkSize {
+	var currIterTotalRead int64
+	for currIterTotalRead < chunkSize {
 		limit := lr.limit.Load()
 		if limit <= 0 {
-			n, err = lr.readWithoutLimit(p[lr.iterTotalRead.Load():int(chunkSize)])
-			lr.iterTotalRead.Add(int64(n))
-			return int(lr.iterTotalRead.Load()), err
+			n, err = lr.readWithoutLimit(p[currIterTotalRead:chunkSize])
+			currIterTotalRead += int64(n)
+			lr.iterTotalRead.Store(currIterTotalRead)
+			return int(currIterTotalRead), err
 		}
 
 		// the limit set to per second
 		limit = limit / (1000 / ReadIntervalMilliseconds)
 
 		allowedBytes := limit
-		chunkSizeLeft := chunkSize - lr.iterTotalRead.Load()
+		chunkSizeLeft := chunkSize - currIterTotalRead
 		if chunkSizeLeft < allowedBytes {
 			allowedBytes = chunkSizeLeft
 		}
 
 		lr.sleep(allowedBytes, limit)
 
-		n, err = lr.reader.Read(p[lr.iterTotalRead.Load():int(lr.iterTotalRead.Load()+allowedBytes)])
-		lr.iterTotalRead.Add(int64(n))
+		n, err = lr.reader.Read(p[currIterTotalRead : currIterTotalRead+allowedBytes])
+		currIterTotalRead += int64(n)
+		lr.iterTotalRead.Store(currIterTotalRead)
 		if err != nil {
 			break
 		}
 	}
 
-	return int(lr.iterTotalRead.Load()), err
+	return int(currIterTotalRead), err
 }
 
 func (lr *LimitedReader) readWithoutLimit(p []byte) (n int, err error) {
