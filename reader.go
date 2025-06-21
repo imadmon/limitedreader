@@ -43,7 +43,7 @@ func (lr *LimitedReader) Read(p []byte) (n int, err error) {
 	for currIterTotalRead < chunkSize {
 		limit := lr.limit.Load()
 		if limit <= 0 {
-			n, err = lr.readWithoutLimit(p[currIterTotalRead:chunkSize])
+			n, err = lr.readWithoutLimit(p[currIterTotalRead : chunkSize : chunkSize-currIterTotalRead])
 			currIterTotalRead += int64(n)
 			lr.iterTotalRead.Store(currIterTotalRead)
 			return int(currIterTotalRead), err
@@ -60,7 +60,7 @@ func (lr *LimitedReader) Read(p []byte) (n int, err error) {
 
 		lr.sleep(allowedBytes, limit)
 
-		n, err = lr.reader.Read(p[currIterTotalRead : currIterTotalRead+allowedBytes])
+		n, err = lr.reader.Read(p[currIterTotalRead : currIterTotalRead+allowedBytes : allowedBytes])
 		currIterTotalRead += int64(n)
 		lr.iterTotalRead.Store(currIterTotalRead)
 		if err != nil {
