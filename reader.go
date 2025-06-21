@@ -19,11 +19,11 @@ type LimitedReader struct {
 	timeAccumulated atomic.Int64
 }
 
-func NewLimitedReader(reader io.Reader, limit int64) *LimitedReader {
-	return NewLimitedReadCloser(io.NopCloser(reader), limit)
+func NewLimitedReader(reader io.Reader, limit int64, opts ...Option) *LimitedReader {
+	return NewLimitedReadCloser(io.NopCloser(reader), limit, opts...)
 }
 
-func NewLimitedReadCloser(reader io.ReadCloser, limit int64) *LimitedReader {
+func NewLimitedReadCloser(reader io.ReadCloser, limit int64, opts ...Option) *LimitedReader {
 	lr := &LimitedReader{
 		reader: reader,
 	}
@@ -33,6 +33,11 @@ func NewLimitedReadCloser(reader io.ReadCloser, limit int64) *LimitedReader {
 	lr.lastElapsed.Store(0)
 	lr.timeSlept.Store(0)
 	lr.timeAccumulated.Store(0)
+
+	for _, opt := range opts {
+		opt(lr)
+	}
+
 	return lr
 }
 
