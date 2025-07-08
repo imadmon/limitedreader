@@ -15,9 +15,9 @@ type LimitedReader struct {
 	reader          io.ReadCloser
 	limit           atomic.Int64
 	iterTotalRead   atomic.Int64
-	lastElapsed     atomic.Int64
-	timeSlept       atomic.Int64
-	timeAccumulated atomic.Int64
+	lastElapsed     int64
+	timeSlept       int64
+	timeAccumulated int64
 	clock           Clock
 	ctx             context.Context
 }
@@ -35,9 +35,6 @@ func NewLimitedReadCloser(reader io.ReadCloser, limit int64, opts ...Option) *Li
 
 	lr.limit.Store(limit)
 	lr.iterTotalRead.Store(0)
-	lr.lastElapsed.Store(0)
-	lr.timeSlept.Store(0)
-	lr.timeAccumulated.Store(0)
 
 	for _, opt := range opts {
 		opt(lr)
@@ -90,28 +87,28 @@ func (lr *LimitedReader) sleep(allowedBytes, iterLimit int64) {
 	expectedTime := allowedBytes * ReadIntervalMilliseconds * int64(time.Millisecond) / iterLimit
 
 	now := lr.clock.Now().UnixNano()
-	elapsed := now - lr.lastElapsed.Load() - lr.timeSlept.Load()
+	elapsed := now - lr.lastElapsed - lr.timeSlept
 	if elapsed > int64(time.Second) {
 		elapsed = 0
-		lr.lastElapsed.Store(now)
-		lr.timeSlept.Store(0)
-		lr.timeAccumulated.Store(0)
+		lr.lastElapsed = now
+		lr.timeSlept = 0
+		lr.timeAccumulated = 0
 	}
 
-	sleepTime := lr.timeAccumulated.Load() - (elapsed - expectedTime)
+	sleepTime := lr.timeAccumulated - (elapsed - expectedTime)
 	if sleepTime > 0 {
 		lr.clock.Sleep(time.Duration(sleepTime))
-		lr.timeAccumulated.Store(0)
+		lr.timeAccumulated = 0
 		if elapsed == 0 {
-			lr.timeSlept.Add(sleepTime)
+			lr.timeSlept += sleepTime
 		} else {
-			lr.timeSlept.Store(0)
-			lr.lastElapsed.Store(now + sleepTime)
+			lr.timeSlept = 0
+			lr.lastElapsed = now + sleepTime
 		}
 	} else {
-		lr.timeAccumulated.Store(sleepTime)
-		lr.timeSlept.Store(0)
-		lr.lastElapsed.Store(now)
+		lr.timeAccumulated = sleepTime
+		lr.timeSlept = 0
+		lr.lastElapsed = now
 	}
 }
 
