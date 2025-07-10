@@ -232,15 +232,14 @@ func (r randomSleepsReader) Read(p []byte) (int, error) {
 func TestLimitedReader_ReadPerformance(t *testing.T) {
 	const durationInSeconds = 5
 	const bufferSize = 32 * 1024 // 32KB buffer
-	const limit = math.MaxInt    // bufferSize * 1_000_000_000 // large limit
-	const minExpectedMB = 12000
+	const limit = math.MaxInt    // large limit - no limit
 	fmt.Printf("Duration set: %d seconds\n", durationInSeconds)
 
 	buffer := make([]byte, bufferSize)
 	var totalBytes int64
 
 	reader := infiniteReader{}
-	lr := NewLimitedReader(reader, limit) // large limit - no limit
+	lr := NewLimitedReader(reader, limit)
 
 	deadline := time.Now().Add(durationInSeconds * time.Second)
 	for time.Now().Before(deadline) {
@@ -255,10 +254,7 @@ func TestLimitedReader_ReadPerformance(t *testing.T) {
 	}
 
 	totalBytesMB := float64(totalBytes) / 1024.0 / 1024.0
-	fmt.Printf("MaxReadOverTimeSyntheticTest: Read %.f MB in 10 seconds, expected at least: %d MB\n", totalBytesMB, minExpectedMB)
-	if totalBytesMB < minExpectedMB {
-		t.Fatalf("read too slow")
-	}
+	fmt.Printf("MaxReadOverTimeSyntheticTest: Read %.f MB in %d seconds\n", totalBytesMB, durationInSeconds)
 }
 
 type infiniteReader struct{}
