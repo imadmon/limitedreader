@@ -9,7 +9,7 @@ Built for systems that care about _tempo_, _predictability_, and _adaptability_.
 
 ## Why?
 
-Traditional rate limiters (like token buckets) are great for handling bursts — but in real-time, bandwidth-sensitive systems, you sometimes need something stricter, more _predictable_.
+Traditional rate limiters (like token buckets) are great for handling bursts - but in real-time, bandwidth-sensitive systems, you sometimes need something stricter, more _predictable_.
 </br>
 This library wraps your `io.Reader` and ensures a consistent read rate over time, with optional support for **adaptive control** based on bandwidth constraints.
 
@@ -113,14 +113,14 @@ Want to see how it stacks up against other Go libraries like
 [`uber-go/ratelimit`](https://github.com/uber-go/ratelimit) or 
 [`juju/ratelimit`](https://github.com/juju/ratelimit) ?
 </br>
-> Check out the `comparison & benchmark article here` — complete with graphs, scenarios, and flame.
+> Check out the `comparison & benchmark article here` - complete with graphs, scenarios, and flame.
 
 </br>
 
 
 ## Looking for automatic bandwidth adjustment?
 
-Check out [`github/imadmon/bandwidthcontroller`](https://github.com/imadmon/bandwidthcontroller) (by the same author) — a library built on top of `limitedreader`, designed for real-time adaptive systems.
+Check out [`github/imadmon/bandwidthcontroller`](https://github.com/imadmon/bandwidthcontroller) (by the same author) - a library built on top of `limitedreader`, designed for real-time adaptive systems.
 </br>
 It **dynamically probes bandwidth** and adjusts read rates accordingly, with a focus on reliability and minimal latency overhead.
 
@@ -129,6 +129,28 @@ This is especially useful for:
 - Real-time data ingestion pipelines
 - Video/audio streamers
 - Any system that must adapt to **changing network conditions**
+
+
+</br>
+
+## Real-world Performance Notice
+
+> Because this library is extremely lightweight and low-level, its performance is tightly coupled with your system's hardware
+
+While the library strives to be as efficient as possible, the **actual read throughput** you get depends heavily on:
+- The **disk or network speed** of your system
+- The **CPU capacity and load**
+- Whether your system is virtualized or containerized
+- And even the **runtime environment** (e.g., Docker vs bare metal)
+
+This means that benchmark results will vary dramatically between:
+- A minimal VPS with shared resources
+- A production-grade server with a powerful CPU
+- A developer machine with a local SSD and low latency
+
+Benchmarks in this repository are designed to be comparative, not absolute - they help you compare different rate limiters **on the same machine**, not between different environments.
+
+Basically if you're benchmarking on a Raspberry Pi - don't expect it to perform like a 128-core monster
 
 
 </br>
