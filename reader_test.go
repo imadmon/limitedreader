@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func TestLimitedReader_BasicRead(t *testing.T) {
+func TestLimitedReaderBasicRateLimiting(t *testing.T) {
 	const dataSize = 100 * 1024 // 100KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 4
@@ -26,7 +26,7 @@ func TestLimitedReader_BasicRead(t *testing.T) {
 	assertReadTimes(t, time.Since(start), partsAmount, partsAmount+1)
 }
 
-func TestLimitedReader_DataHermetics(t *testing.T) {
+func TestLimitedReaderDataHermetics(t *testing.T) {
 	const dataSize = 100 * 1024 // 100KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 2
@@ -48,7 +48,7 @@ func TestLimitedReader_DataHermetics(t *testing.T) {
 	}
 }
 
-func TestLimitedReader_NoLimitRead(t *testing.T) {
+func TestLimitedReaderNoLimitRead(t *testing.T) {
 	const dataSize = 100 * 1024 // 100KB
 	const bufferSize = dataSize // one read call
 	const limit = 0             // no limit
@@ -61,7 +61,7 @@ func TestLimitedReader_NoLimitRead(t *testing.T) {
 	assertReadTimes(t, time.Since(start), 0, 0)
 }
 
-func TestLimitedReader_MultipleReads(t *testing.T) {
+func TestLimitedReaderMultipleReads(t *testing.T) {
 	const dataSize = 100 * 1024 // 100KB
 	const bufferSize = 1024     // multiple times to call read for one limit
 	const partsAmount = 2
@@ -75,7 +75,7 @@ func TestLimitedReader_MultipleReads(t *testing.T) {
 	assertReadTimes(t, time.Since(start), partsAmount, partsAmount+1)
 }
 
-func TestLimitedReader_LargeRead(t *testing.T) {
+func TestLimitedReaderLargeRead(t *testing.T) {
 	const dataSize = 1 * 1024 * 1024 * 1024 // 1GB
 	const bufferSize = 32 * 1024            // classic io.Copy
 	const partsAmount = 3
@@ -89,7 +89,7 @@ func TestLimitedReader_LargeRead(t *testing.T) {
 	assertReadTimes(t, time.Since(start), partsAmount, partsAmount+1)
 }
 
-func TestLimitedReader_EOFBehavior(t *testing.T) {
+func TestLimitedReaderEOFBehavior(t *testing.T) {
 	const dataSize = 1024           // 1KB
 	const bufferSize = dataSize * 2 // large buffer
 	const limit = dataSize * 20     // large limit
@@ -101,7 +101,7 @@ func TestLimitedReader_EOFBehavior(t *testing.T) {
 	read(t, lr, bufferSize, 0, io.EOF)
 }
 
-func TestLimitedReader_UpdateLimit(t *testing.T) {
+func TestLimitedReaderUpdateLimit(t *testing.T) {
 	const dataSize = 100 * 1024 // 100KB
 	const bufferSize = dataSize / 2
 	const partsAmount = 4
@@ -120,7 +120,7 @@ func TestLimitedReader_UpdateLimit(t *testing.T) {
 	assertReadTimes(t, time.Since(start), int(float64(partsAmount)*0.75), int(float64(partsAmount)*0.75)+1)
 }
 
-func TestLimitedReader_GetCurrentTotalRead(t *testing.T) {
+func TestLimitedReaderGetCurrentTotalRead(t *testing.T) {
 	const dataSize = 100 * 1024 // 100KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 2
@@ -153,7 +153,7 @@ func TestLimitedReader_GetCurrentTotalRead(t *testing.T) {
 	<-doneC
 }
 
-func TestLimitedReader_UnconventionalLimitRead(t *testing.T) {
+func TestLimitedReaderUnconventionalLimitRead(t *testing.T) {
 	const dataSize = 100 * 1024 // 100KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 2
@@ -180,7 +180,7 @@ func (m *mockReadCloser) Close() error {
 	return nil
 }
 
-func TestLimitedReadCloser_Close(t *testing.T) {
+func TestLimitedReadCloserClose(t *testing.T) {
 	readCloser := mockReadCloser{}
 	lr := NewLimitedReadCloser(&readCloser, 0)
 	err := lr.Close()
@@ -193,7 +193,7 @@ func TestLimitedReadCloser_Close(t *testing.T) {
 	}
 }
 
-func TestLimitedReader_ReadUnstableStream(t *testing.T) {
+func TestLimitedReaderReadUnstableStream(t *testing.T) {
 	const dataSize = 32 * 1024 // 32KB buffer
 	const bufferSize = 1024    // small buffer
 	const partsAmount = 4
@@ -229,7 +229,7 @@ func (r randomSleepsReader) Read(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func TestLimitedReader_ReadPerformance(t *testing.T) {
+func TestLimitedReaderReadPerformance(t *testing.T) {
 	const durationInSeconds = 5
 	const bufferSize = 32 * 1024 // 32KB buffer
 	const limit = math.MaxInt    // large limit - no limit
@@ -266,7 +266,7 @@ func (infiniteReader) Read(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func TestLimitedReader_ReadWithClock(t *testing.T) {
+func TestLimitedReaderReadWithClock(t *testing.T) {
 	const dataSize = 100 * 1024 // 100KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 4
@@ -290,7 +290,7 @@ func (noSleepClock) Sleep(sleepTime time.Duration) {
 	return
 }
 
-func TestLimitedReader_ReadWithContext(t *testing.T) {
+func TestLimitedReaderReadWithContext(t *testing.T) {
 	const dataSize = 100 * 1024 // 100KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 4
