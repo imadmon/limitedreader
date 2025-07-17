@@ -1,0 +1,44 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Output of go build
+*.out
+
+# Test binary
+*.test
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Dependency directories (vendor if used)
+vendor/
+
+# Go modules cache
+Gopkg.lock
+Gopkg.toml
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak
+
+# Logs
+*.log
+
+# Mac and Linux file system
+.DS_Store
+Thumbs.db
+
+# Coverage and profiling
+*.cover
+*.prof
+
+# Node modules if used for frontend
+node_modules/
