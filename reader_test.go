@@ -13,7 +13,7 @@ import (
 )
 
 func TestLimitedReaderBasicRateLimiting(t *testing.T) {
-	const dataSize = 100 * 1024 // 100KB
+	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 4
 	const limit = dataSize / partsAmount // dataSize/partsAmount bytes per second
@@ -27,7 +27,7 @@ func TestLimitedReaderBasicRateLimiting(t *testing.T) {
 }
 
 func TestLimitedReaderDataHermetics(t *testing.T) {
-	const dataSize = 100 * 1024 // 100KB
+	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 2
 	const limit = dataSize / partsAmount // dataSize/partsAmount bytes per second
@@ -49,7 +49,7 @@ func TestLimitedReaderDataHermetics(t *testing.T) {
 }
 
 func TestLimitedReaderNoLimitRead(t *testing.T) {
-	const dataSize = 100 * 1024 // 100KB
+	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = dataSize // one read call
 	const limit = 0             // no limit
 
@@ -62,7 +62,7 @@ func TestLimitedReaderNoLimitRead(t *testing.T) {
 }
 
 func TestLimitedReaderMultipleReads(t *testing.T) {
-	const dataSize = 100 * 1024 // 100KB
+	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = 1024     // multiple times to call read for one limit
 	const partsAmount = 2
 	const limit = dataSize / partsAmount // dataSize/partsAmount bytes per second
@@ -76,7 +76,7 @@ func TestLimitedReaderMultipleReads(t *testing.T) {
 }
 
 func TestLimitedReaderLargeRead(t *testing.T) {
-	const dataSize = 1 * 1024 * 1024 * 1024 // 1GB
+	const dataSize = 1 * 1024 * 1024 * 1024 // 1 GB
 	const bufferSize = 32 * 1024            // classic io.Copy
 	const partsAmount = 3
 	const limit = dataSize / partsAmount // dataSize/partsAmount bytes per second
@@ -90,7 +90,7 @@ func TestLimitedReaderLargeRead(t *testing.T) {
 }
 
 func TestLimitedReaderEOFBehavior(t *testing.T) {
-	const dataSize = 1024           // 1KB
+	const dataSize = 1024           // 1 KB
 	const bufferSize = dataSize * 2 // large buffer
 	const limit = dataSize * 20     // large limit
 
@@ -102,7 +102,7 @@ func TestLimitedReaderEOFBehavior(t *testing.T) {
 }
 
 func TestLimitedReaderUpdateLimit(t *testing.T) {
-	const dataSize = 100 * 1024 // 100KB
+	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = dataSize / 2
 	const partsAmount = 4
 	const limit = dataSize / partsAmount // dataSize/partsAmount bytes per second
@@ -121,7 +121,7 @@ func TestLimitedReaderUpdateLimit(t *testing.T) {
 }
 
 func TestLimitedReaderGetCurrentTotalRead(t *testing.T) {
-	const dataSize = 100 * 1024 // 100KB
+	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 2
 	const limit = dataSize / partsAmount // dataSize/partsAmount bytes per second
@@ -154,7 +154,7 @@ func TestLimitedReaderGetCurrentTotalRead(t *testing.T) {
 }
 
 func TestLimitedReaderUnconventionalLimitRead(t *testing.T) {
-	const dataSize = 100 * 1024 // 100KB
+	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 2
 	const limit = dataSize/partsAmount - 3000 // unconventional limit
@@ -194,7 +194,7 @@ func TestLimitedReadCloserClose(t *testing.T) {
 }
 
 func TestLimitedReaderReadUnstableStream(t *testing.T) {
-	const dataSize = 32 * 1024 // 32KB buffer
+	const dataSize = 32 * 1024 // 32 KB buffer
 	const bufferSize = 1024    // small buffer
 	const partsAmount = 4
 	const limit = dataSize / partsAmount
@@ -229,45 +229,8 @@ func (r randomSleepsReader) Read(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func TestLimitedReaderReadPerformance(t *testing.T) {
-	const durationInSeconds = 5
-	const bufferSize = 32 * 1024 // 32KB buffer
-	const limit = math.MaxInt    // large limit - no limit
-	fmt.Printf("Duration set: %d seconds\n", durationInSeconds)
-
-	buffer := make([]byte, bufferSize)
-	var totalBytes int64
-
-	reader := infiniteReader{}
-	lr := NewLimitedReader(reader, limit)
-
-	deadline := time.Now().Add(durationInSeconds * time.Second)
-	for time.Now().Before(deadline) {
-		n, err := lr.Read(buffer)
-		if n > 0 {
-			totalBytes += int64(n)
-		}
-		if err != nil {
-			fmt.Printf("Read error: %v\n", err)
-			break
-		}
-	}
-
-	totalBytesMB := float64(totalBytes) / 1024.0 / 1024.0
-	fmt.Printf("MaxReadOverTimeSyntheticTest: Read %.f MB in %d seconds\n", totalBytesMB, durationInSeconds)
-}
-
-type infiniteReader struct{}
-
-func (infiniteReader) Read(p []byte) (int, error) {
-	for i := range p {
-		p[i] = 'A'
-	}
-	return len(p), nil
-}
-
 func TestLimitedReaderReadWithClock(t *testing.T) {
-	const dataSize = 100 * 1024 // 100KB
+	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 4
 	const limit = dataSize / partsAmount // dataSize/partsAmount bytes per second
@@ -291,7 +254,7 @@ func (noSleepClock) Sleep(sleepTime time.Duration) {
 }
 
 func TestLimitedReaderReadWithContext(t *testing.T) {
-	const dataSize = 100 * 1024 // 100KB
+	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 4
 	const limit = dataSize / partsAmount // dataSize/partsAmount bytes per second
@@ -305,6 +268,75 @@ func TestLimitedReaderReadWithContext(t *testing.T) {
 	start := time.Now()
 	read(t, lr, bufferSize, 0, context.Canceled)
 	assertReadTimes(t, time.Since(start), 0, 1)
+}
+
+func BenchmarkLimitedReaderNewLimitedReader(b *testing.B) {
+	b.ReportAllocs()
+	reader := infiniteReader{}
+	for i := 0; i < b.N; i++ {
+		_ = NewLimitedReader(reader, 0)
+	}
+}
+
+func BenchmarkLimitedReaderThroughputAccuracy(b *testing.B) {
+	const bufferSize = 32 * 1024   // 32 KB buffer
+	const limit = 10 * 1024 * 1024 // 10 MB limit
+
+	reader := infiniteReader{}
+	lr := NewLimitedReader(reader, limit)
+	buffer := make([]byte, bufferSize)
+
+	var totalBytes int64
+	start := time.Now()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		n, err := lr.Read(buffer)
+		totalBytes += int64(n)
+		if err != nil {
+			b.Fatalf("read failed: %v", err)
+		}
+	}
+
+	b.StopTimer()
+	elapsed := time.Since(start)
+	totalBytesMB := float64(totalBytes) / 1024.0 / 1024.0
+	b.ReportMetric(totalBytesMB, "MB_read")
+	b.ReportMetric(totalBytesMB/elapsed.Seconds(), "MB_read_per_second")
+}
+
+func BenchmarkLimitedReaderMaxThroughput(b *testing.B) {
+	const bufferSize = 32 * 1024 // 32 KB buffer
+	const limit = math.MaxInt    // large limit - no limit
+
+	reader := infiniteReader{}
+	lr := NewLimitedReader(reader, limit)
+	buffer := make([]byte, bufferSize)
+
+	var totalBytes int64
+	start := time.Now()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		n, err := lr.Read(buffer)
+		totalBytes += int64(n)
+		if err != nil {
+			b.Fatalf("read failed: %v", err)
+		}
+	}
+
+	b.StopTimer()
+	elapsed := time.Since(start)
+	totalBytesMB := float64(totalBytes) / 1024.0 / 1024.0
+	b.ReportMetric(totalBytesMB, "MB_read")
+	b.ReportMetric(totalBytesMB/elapsed.Seconds(), "MB_read_per_second")
+}
+
+type infiniteReader struct{}
+
+func (infiniteReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 'A'
+	}
+	return len(p), nil
 }
 
 func read(t *testing.T, reader *LimitedReader, bufferSize, expectedDataSize int, expectedErr error) []byte {
