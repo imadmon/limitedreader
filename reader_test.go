@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -75,6 +76,29 @@ func TestLimitedReaderMultipleReads(t *testing.T) {
 	assertReadTimes(t, time.Since(start), partsAmount, partsAmount+1)
 }
 
+func TestLimitedReaderConcurrentReads(t *testing.T) {
+	const dataSize = 100 * 1024 // 100 KB
+	const bufferSize = 1024     // multiple times to call read for one limit
+	const partsAmount = 4
+	const limit = dataSize / partsAmount // dataSize/partsAmount bytes per second
+	const concurrentReadersAmount = 4
+
+	reader := bytes.NewReader(make([]byte, dataSize))
+	lr := NewLimitedReader(reader, int64(limit))
+
+	var wg sync.WaitGroup
+	start := time.Now()
+	for i := 0; i < concurrentReadersAmount; i++ {
+		wg.Add(1)
+		go func() {
+			read(t, lr, bufferSize, dataSize/concurrentReadersAmount, nil)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	assertReadTimes(t, time.Since(start), partsAmount, partsAmount+1)
+}
+
 func TestLimitedReaderLargeRead(t *testing.T) {
 	const dataSize = 1 * 1024 * 1024 * 1024 // 1 GB
 	const bufferSize = 32 * 1024            // classic io.Copy
@@ -120,7 +144,7 @@ func TestLimitedReaderUpdateLimit(t *testing.T) {
 	assertReadTimes(t, time.Since(start), int(float64(partsAmount)*0.75), int(float64(partsAmount)*0.75)+1)
 }
 
-func TestLimitedReaderGetCurrentTotalRead(t *testing.T) {
+func TestLimitedReaderGetTotalRead(t *testing.T) {
 	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = dataSize // one read call
 	const partsAmount = 2
@@ -136,7 +160,7 @@ func TestLimitedReaderGetCurrentTotalRead(t *testing.T) {
 		for i := 0; i < partsAmount; i++ {
 			select {
 			case <-time.After(time.Second):
-				currentTotalRead := lr.GetCurrentIterTotalRead()
+				currentTotalRead := lr.GetTotalRead()
 				fmt.Printf("Total Read: %d , LimitAbs: %d  +- %d (chunk size)\n", currentTotalRead, limit, chunkSize)
 				if currentTotalRead != int64(limit*(i+1)) &&
 					currentTotalRead != int64(limit*(i+1))-chunkSize &&

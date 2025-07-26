@@ -3,6 +3,7 @@ package limitedreader
 import (
 	"context"
 	"io"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -14,10 +15,11 @@ var (
 type LimitedReader struct {
 	reader          io.ReadCloser
 	limit           atomic.Int64
-	iterTotalRead   atomic.Int64
+	totalRead       atomic.Int64
 	lastElapsed     int64
 	timeSlept       int64
 	timeAccumulated int64
+	lock            sync.Mutex
 	clock           Clock
 	ctx             context.Context
 }
@@ -34,7 +36,7 @@ func NewLimitedReadCloser(reader io.ReadCloser, limit int64, opts ...Option) *Li
 	}
 
 	lr.limit.Store(limit)
-	lr.iterTotalRead.Store(0)
+	lr.totalRead.Store(0)
 
 	for _, opt := range opts {
 		opt(lr)
@@ -44,29 +46,35 @@ func NewLimitedReadCloser(reader io.ReadCloser, limit int64, opts ...Option) *Li
 }
 
 func (lr *LimitedReader) Read(p []byte) (n int, err error) {
-	lr.iterTotalRead.Store(0)
+	var iterTotalRead int64
 	chunkSize := int64(len(p))
-	for !lr.isContextCanceled() && lr.iterTotalRead.Load() < chunkSize {
+
+	lr.lock.Lock()
+	defer lr.lock.Unlock()
+
+	for !lr.isContextCanceled() && iterTotalRead < chunkSize {
 		limit := lr.limit.Load()
 		if limit <= 0 {
-			n, err = lr.readWithoutLimit(p[lr.iterTotalRead.Load():chunkSize:chunkSize])
-			lr.iterTotalRead.Add(int64(n))
-			return int(lr.iterTotalRead.Load()), err
+			n, err = lr.readWithoutLimit(p[iterTotalRead:chunkSize:chunkSize])
+			iterTotalRead += int64(n)
+			lr.totalRead.Add(int64(n))
+			return int(iterTotalRead), err
 		}
 
 		// the limit set to per second
 		limit = limit / (1000 / ReadIntervalMilliseconds)
 
 		allowedBytes := limit
-		chunkSizeLeft := chunkSize - lr.iterTotalRead.Load()
+		chunkSizeLeft := chunkSize - iterTotalRead
 		if chunkSizeLeft < allowedBytes {
 			allowedBytes = chunkSizeLeft
 		}
 
 		lr.sleep(allowedBytes, limit)
 
-		n, err = lr.reader.Read(p[lr.iterTotalRead.Load() : lr.iterTotalRead.Load()+allowedBytes : lr.iterTotalRead.Load()+allowedBytes])
-		lr.iterTotalRead.Add(int64(n))
+		n, err = lr.reader.Read(p[iterTotalRead : iterTotalRead+allowedBytes : iterTotalRead+allowedBytes])
+		iterTotalRead += int64(n)
+		lr.totalRead.Add(int64(n))
 		if err != nil {
 			break
 		}
@@ -76,7 +84,7 @@ func (lr *LimitedReader) Read(p []byte) (n int, err error) {
 		err = context.Canceled
 	}
 
-	return int(lr.iterTotalRead.Load()), err
+	return int(iterTotalRead), err
 }
 
 func (lr *LimitedReader) readWithoutLimit(p []byte) (n int, err error) {
@@ -129,6 +137,6 @@ func (lr *LimitedReader) UpdateLimit(newLimit int64) {
 	lr.limit.Store(newLimit)
 }
 
-func (lr *LimitedReader) GetCurrentIterTotalRead() int64 {
-	return lr.iterTotalRead.Load()
+func (lr *LimitedReader) GetTotalRead() int64 {
+	return lr.totalRead.Load()
 }
