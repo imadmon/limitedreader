@@ -311,7 +311,8 @@ func TestLimitedReaderZeroLimitBehavior(t *testing.T) {
 	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = dataSize // one read call
 	const limit = 0
-	const delayLimit = 2 // should take 2 seconds
+	const smallLimit = 2 // smaller then 1000 / lr.cfg.ReadIntervalMilliseconds default 20
+	const delayLimit = 1 // should take delayLimit*2 seconds
 
 	reader := bytes.NewReader(make([]byte, dataSize))
 	lr := NewLimitedReader(reader, int64(limit))
@@ -324,10 +325,12 @@ func TestLimitedReaderZeroLimitBehavior(t *testing.T) {
 	}()
 
 	time.Sleep(delayLimit * time.Second)
+	lr.UpdateLimit(smallLimit)
+	time.Sleep(delayLimit * time.Second)
 	lr.UpdateLimit(dataSize * 2)
 	<-doneC
 
-	assertReadTimes(t, time.Since(start), delayLimit, delayLimit+1)
+	assertReadTimes(t, time.Since(start), delayLimit*2, delayLimit*2+1)
 }
 
 func BenchmarkLimitedReaderNewLimitedReader(b *testing.B) {

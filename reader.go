@@ -52,12 +52,13 @@ func (lr *LimitedReader) Read(p []byte) (n int, err error) {
 
 	for !lr.isContextCanceled() && iterTotalRead < chunkSize {
 		limit := lr.limit.Load()
+
+		// the limit set to per second
+		limit = lr.calculateIterLimit(limit)
+
 		if limit <= 0 {
 			limit = lr.waitUntilValidLimitIsSet()
 		}
-
-		// the limit set to per second
-		limit = limit / (1000 / lr.cfg.ReadIntervalMilliseconds)
 
 		allowedBytes := limit
 		chunkSizeLeft := chunkSize - iterTotalRead
@@ -86,7 +87,7 @@ func (lr *LimitedReader) waitUntilValidLimitIsSet() int64 {
 	var limit int64
 	for limit <= 0 && !lr.isContextCanceled() {
 		lr.clock.Sleep(time.Duration(lr.cfg.ReadIntervalMilliseconds) * time.Millisecond)
-		limit = lr.limit.Load()
+		limit = lr.calculateIterLimit(lr.limit.Load())
 	}
 
 	return limit
@@ -128,6 +129,10 @@ func (lr *LimitedReader) isContextCanceled() bool {
 	default:
 		return false
 	}
+}
+
+func (lr *LimitedReader) calculateIterLimit(limit int64) int64 {
+	return limit / (1000 / lr.cfg.ReadIntervalMilliseconds)
 }
 
 func (lr *LimitedReader) Close() error {
