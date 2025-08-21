@@ -52,7 +52,7 @@ func TestLimitedReaderDataHermetics(t *testing.T) {
 func TestLimitedReaderNoLimitRead(t *testing.T) {
 	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = dataSize // one read call
-	const limit = 0             // no limit
+	const limit = math.MaxInt   // large limit - no limit
 
 	reader := bytes.NewReader(make([]byte, dataSize))
 	lr := NewLimitedReader(reader, limit)
@@ -305,6 +305,29 @@ func TestLimitedReaderReadWithConfig(t *testing.T) {
 	if lr.cfg.ReadIntervalMilliseconds != newReadInterval {
 		t.Fatalf("got unexpected ReadIntervalMilliseconds, value: %d expected: %d", lr.cfg.ReadIntervalMilliseconds, newReadInterval)
 	}
+}
+
+func TestLimitedReaderZeroLimitBehavior(t *testing.T) {
+	const dataSize = 100 * 1024 // 100 KB
+	const bufferSize = dataSize // one read call
+	const limit = 0
+	const delayLimit = 2 // should take 2 seconds
+
+	reader := bytes.NewReader(make([]byte, dataSize))
+	lr := NewLimitedReader(reader, int64(limit))
+	doneC := make(chan struct{})
+
+	start := time.Now()
+	go func() {
+		read(t, lr, bufferSize, dataSize, nil)
+		doneC <- struct{}{}
+	}()
+
+	time.Sleep(delayLimit * time.Second)
+	lr.UpdateLimit(dataSize * 2)
+	<-doneC
+
+	assertReadTimes(t, time.Since(start), delayLimit, delayLimit+1)
 }
 
 func BenchmarkLimitedReaderNewLimitedReader(b *testing.B) {
