@@ -15,3 +15,11 @@ func WithContext(ctx context.Context) Option {
 		lr.ctx = ctx
 	}
 }
+
+func WithConfig(readIntervalMilliseconds int64) Option {
+	return func(lr *LimitedReader) {
+		lr.cfg = Config{
+			ReadIntervalMilliseconds: readIntervalMilliseconds,
+		}
+	}
+}

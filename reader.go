@@ -8,12 +8,9 @@ import (
 	"time"
 )
 
-var (
-	ReadIntervalMilliseconds int64 = 50
-)
-
 type LimitedReader struct {
 	reader          io.ReadCloser
+	cfg             Config
 	limit           atomic.Int64
 	totalRead       atomic.Int64
 	lastElapsed     int64
@@ -31,6 +28,7 @@ func NewLimitedReader(reader io.Reader, limit int64, opts ...Option) *LimitedRea
 func NewLimitedReadCloser(reader io.ReadCloser, limit int64, opts ...Option) *LimitedReader {
 	lr := &LimitedReader{
 		reader: reader,
+		cfg:    Config{DefaultReadIntervalMilliseconds},
 		clock:  realClock{},
 		ctx:    context.Background(),
 	}
@@ -62,7 +60,7 @@ func (lr *LimitedReader) Read(p []byte) (n int, err error) {
 		}
 
 		// the limit set to per second
-		limit = limit / (1000 / ReadIntervalMilliseconds)
+		limit = limit / (1000 / lr.cfg.ReadIntervalMilliseconds)
 
 		allowedBytes := limit
 		chunkSizeLeft := chunkSize - iterTotalRead
@@ -92,7 +90,7 @@ func (lr *LimitedReader) readWithoutLimit(p []byte) (n int, err error) {
 }
 
 func (lr *LimitedReader) sleep(allowedBytes, iterLimit int64) {
-	expectedTime := allowedBytes * ReadIntervalMilliseconds * int64(time.Millisecond) / iterLimit
+	expectedTime := allowedBytes * lr.cfg.ReadIntervalMilliseconds * int64(time.Millisecond) / iterLimit
 
 	now := lr.clock.Now().UnixNano()
 	elapsed := now - lr.lastElapsed - lr.timeSlept

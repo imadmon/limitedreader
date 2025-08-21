@@ -156,7 +156,7 @@ func TestLimitedReaderGetTotalRead(t *testing.T) {
 
 	go func() {
 		defer func() { doneC <- struct{}{} }()
-		chunkSize := limit / (1000 / ReadIntervalMilliseconds)
+		chunkSize := limit / (1000 / DefaultReadIntervalMilliseconds)
 		for i := 0; i < partsAmount; i++ {
 			select {
 			case <-time.After(time.Second):
@@ -223,12 +223,12 @@ func TestLimitedReaderReadUnstableStream(t *testing.T) {
 	const partsAmount = 4
 	const limit = dataSize / partsAmount
 
-	iterLimit := limit / (1000 / ReadIntervalMilliseconds)
+	iterLimit := limit / (1000 / DefaultReadIntervalMilliseconds)
 	allowedBytes := iterLimit
 	if bufferSize < allowedBytes {
 		allowedBytes = bufferSize
 	}
-	expectedTime := allowedBytes * ReadIntervalMilliseconds * int64(time.Millisecond) / iterLimit
+	expectedTime := allowedBytes * DefaultReadIntervalMilliseconds * int64(time.Millisecond) / iterLimit
 
 	reader := randomSleepsReader{
 		maxSleepTime: expectedTime,
@@ -292,6 +292,19 @@ func TestLimitedReaderReadWithContext(t *testing.T) {
 	start := time.Now()
 	read(t, lr, bufferSize, 0, context.Canceled)
 	assertReadTimes(t, time.Since(start), 0, 1)
+}
+
+func TestLimitedReaderReadWithConfig(t *testing.T) {
+	lr := NewLimitedReader(nil, 0)
+	if lr.cfg.ReadIntervalMilliseconds != DefaultReadIntervalMilliseconds {
+		t.Fatalf("got unexpected ReadIntervalMilliseconds, value: %d expected: %d", lr.cfg.ReadIntervalMilliseconds, DefaultReadIntervalMilliseconds)
+	}
+
+	var newReadInterval int64 = 100
+	lr = NewLimitedReader(nil, 0, WithConfig(newReadInterval))
+	if lr.cfg.ReadIntervalMilliseconds != newReadInterval {
+		t.Fatalf("got unexpected ReadIntervalMilliseconds, value: %d expected: %d", lr.cfg.ReadIntervalMilliseconds, newReadInterval)
+	}
 }
 
 func BenchmarkLimitedReaderNewLimitedReader(b *testing.B) {
