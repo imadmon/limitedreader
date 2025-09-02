@@ -143,6 +143,10 @@ func (lr *LimitedReader) UpdateLimit(newLimit int64) {
 	lr.limit.Store(newLimit)
 }
 
+func (lr *LimitedReader) GetLimit() int64 {
+	return lr.limit.Load()
+}
+
 func (lr *LimitedReader) GetTotalRead() int64 {
 	return lr.totalRead.Load()
 }

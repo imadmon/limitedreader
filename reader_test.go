@@ -144,6 +144,22 @@ func TestLimitedReaderUpdateLimit(t *testing.T) {
 	assertReadTimes(t, time.Since(start), int(float64(partsAmount)*0.75), int(float64(partsAmount)*0.75)+1)
 }
 
+func TestLimitedReaderGetLimit(t *testing.T) {
+	var limit int64 = 100
+	reader := bytes.NewReader(make([]byte, 0))
+	lr := NewLimitedReader(reader, int64(limit))
+
+	if lr.GetLimit() != limit {
+		t.Fatalf("got unexpected limit, limit: %d expected: %d", lr.GetLimit(), limit)
+	}
+
+	limit = 500
+	lr.UpdateLimit(limit)
+	if lr.GetLimit() != limit {
+		t.Fatalf("got unexpected limit, limit: %d expected: %d", lr.GetLimit(), limit)
+	}
+}
+
 func TestLimitedReaderGetTotalRead(t *testing.T) {
 	const dataSize = 100 * 1024 // 100 KB
 	const bufferSize = dataSize // one read call
